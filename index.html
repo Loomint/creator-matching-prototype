@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>크리에이터 매칭 추천 프로토타입</title>
+<style>
+  :root{
+    --ink:#191919; --gry:#787774; --lgt:#a5a4a0; --div:#e9e9e7; --bg:#fff;
+    --card:#f7f6f3; --amb:#d9730d; --ambbg:#faebdd; --grn:#448361; --grnbg:#edf3ec;
+    --blu:#337ea9; --blubg:#e7f3f8; --red:#c4554d; --redbg:#fbecec;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+       font-size:15px;line-height:1.6}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 24px 80px}
+  header h1{font-size:26px;margin:0 0 6px}
+  header p{color:var(--gry);margin:0 0 28px;font-size:14px}
+  .panel{border:1px solid var(--div);border-radius:12px;padding:6px 24px 22px;margin-bottom:28px}
+  .row{display:flex;gap:24px;flex-wrap:wrap}
+  .fld{flex:1;min-width:240px}
+  .fgrp{padding:18px 0;border-bottom:1px solid var(--div)}
+  .fgrp.last{border-bottom:0}
+  label.h{display:block;font-size:12px;font-weight:700;color:var(--lgt);letter-spacing:.02em;margin-bottom:8px}
+  .bwrap{display:flex;align-items:center;gap:12px}
+  .bwrap input{max-width:260px}
+  .bwrap b{font-size:17px;color:var(--ink)}
+  #tier .chip small{color:var(--lgt);font-size:11.5px}
+  #tier .chip.on small{color:rgba(255,255,255,.75)}
+  input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--div);border-radius:8px;font-size:15px;font-family:inherit}
+  input[type=number]:focus{outline:none;border-color:var(--gry)}
+  .hint{font-size:12px;color:var(--lgt);margin-top:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:7px 13px;border:1px solid var(--div);border-radius:20px;cursor:pointer;font-size:13.5px;user-select:none;background:#fff}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.q{background:var(--card);color:var(--gry);font-size:12.5px;padding:6px 11px}
+  .chip.q:hover{border-color:var(--gry);color:var(--ink)}
+  .chip.q.clr{background:#fff;color:var(--lgt)}
+  .seg{display:flex;gap:8px}
+  .seg .chip{flex:1;text-align:center}
+  details.adv{margin-top:18px;border-top:1px solid var(--div);padding-top:14px}
+  details.adv summary{cursor:pointer;font-size:13px;color:var(--gry);list-style:none}
+  details.adv summary::-webkit-details-marker{display:none}
+  details.adv summary::before{content:"＋ ";color:var(--lgt)}
+  details.adv[open] summary::before{content:"－ "}
+  .btn{margin-top:20px;padding:12px 26px;background:var(--ink);color:#fff;border:0;border-radius:8px;
+       font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn:hover{opacity:.9}
+  .sec-h{display:flex;align-items:baseline;gap:10px;margin:34px 0 4px}
+  .sec-h h2{font-size:17px;margin:0}
+  .sec-h span{font-size:13px;color:var(--lgt)}
+  .sec-desc{font-size:13px;color:var(--gry);margin:0 0 14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .c{border:1px solid var(--div);border-radius:12px;padding:16px 18px}
+  .c.new{border-color:#ecd9c6;background:#fffdfa}
+  .c-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .c-name{font-weight:700;font-size:15.5px}
+  .c-meta{font-size:12.5px;color:var(--gry);margin-top:2px}
+  .score{font-size:20px;font-weight:700;white-space:nowrap}
+  .score small{font-size:11px;color:var(--lgt);font-weight:400;display:block;text-align:right}
+  .bars{margin:12px 0 10px}
+  .bar{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .bar b{width:58px;font-size:11.5px;color:var(--gry);font-weight:600}
+  .bar .t{flex:1;height:6px;background:var(--div);border-radius:4px;overflow:hidden}
+  .bar .t i{display:block;height:100%;background:var(--ink);border-radius:4px}
+  .bar em{width:34px;text-align:right;font-size:11px;color:var(--lgt);font-style:normal}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+  .tag{font-size:11.5px;padding:3px 9px;border-radius:12px;background:var(--card);color:var(--gry)}
+  .tag.g{background:var(--grnbg);color:var(--grn)}
+  .tag.a{background:var(--ambbg);color:var(--amb)}
+  .tag.b{background:var(--blubg);color:var(--blu)}
+  .empty{border:1px solid var(--div);border-radius:12px;padding:26px;background:var(--card)}
+  .empty h3{margin:0 0 8px;font-size:16px}
+  .empty p{margin:0 0 16px;color:var(--gry);font-size:14px}
+  .alt{display:flex;flex-direction:column;gap:8px}
+  .alt button{text-align:left;padding:12px 14px;border:1px solid var(--div);border-radius:8px;background:#fff;
+              cursor:pointer;font-size:14px;font-family:inherit;color:var(--ink)}
+  .alt button:hover{border-color:var(--gry)}
+  .alt button span{color:var(--gry);font-size:12.5px}
+  .sortbar{display:flex;gap:6px;align-items:center;margin:10px 0 16px;flex-wrap:wrap}
+  .sortbar em{font-style:normal;font-size:12px;color:var(--lgt);margin-right:4px}
+  .sortbar .chip{padding:5px 11px;font-size:12.5px}
+  .combo{border:1px solid var(--div);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+  .combo h4{margin:0 0 4px;font-size:14.5px}
+  .combo .d{font-size:12.5px;color:var(--gry);margin-bottom:10px}
+  .combo table{width:100%;border-collapse:collapse;font-size:13px}
+  .combo td{padding:5px 0;border-bottom:1px solid var(--div)}
+  .combo td:last-child{text-align:right;color:var(--gry)}
+  .combo .sum{font-weight:700}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--div);margin:30px 0 0}
+  .tabs .tb{padding:10px 18px;cursor:pointer;font-size:14.5px;font-weight:700;color:var(--lgt);
+            border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs .tb.on{color:var(--ink);border-bottom-color:var(--ink)}
+  .tabs .tb span{font-weight:400;font-size:12.5px;color:var(--lgt);margin-left:5px}
+  .chip.off{opacity:.45;cursor:pointer}
+  .chip small.req{display:block;font-size:10px;color:var(--lgt);font-weight:400}
+  .chip.on small.req{color:rgba(255,255,255,.7)}
+  .notice{background:var(--ambbg);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);margin-bottom:12px}
+  .notice b{color:var(--amb)}
+  .notice button{margin-left:8px;padding:5px 12px;border:1px solid var(--amb);background:#fff;color:var(--amb);
+                 border-radius:6px;cursor:pointer;font-size:12.5px;font-family:inherit}
+  .foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--div);font-size:12px;color:var(--lgt)}
+  .load{color:var(--gry);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>크리에이터 매칭 추천</h1>
+    <p>예산·카테고리·팔로워 규모를 입력하면, 성과 지표 기반으로 후보를 추천합니다.</p>
+  </header>
+
+  <div class="panel">
+    <!-- 1. 예산 -->
+    <div class="fgrp">
+      <label class="h" for="budget">1 · 캠페인 총예산</label>
+      <div class="bwrap">
+        <input type="number" id="budget" value="5000000" min="0" step="100000" />
+        <b id="budgetKo">500만원</b>
+      </div>
+      <div class="chips" style="margin-top:8px">
+        <div class="chip q" data-b="10000">+1만</div>
+        <div class="chip q" data-b="100000">+10만</div>
+        <div class="chip q" data-b="500000">+50만</div>
+        <div class="chip q" data-b="1000000">+100만</div>
+        <div class="chip q" data-b="5000000">+500만</div>
+        <div class="chip q" data-b="10000000">+1,000만</div>
+        <div class="chip q clr" data-b="0">초기화</div>
+      </div>
+      <div class="hint">이 예산 안에서 집행 가능한 후보를 찾습니다.</div>
+    </div>
+
+    <!-- 2. 플랫폼 -->
+    <div class="fgrp">
+      <label class="h">2 · 플랫폼</label>
+      <div class="chips" id="plat">
+        <div class="chip on" data-v="all">전체</div>
+        <div class="chip" data-v="유튜브">유튜브</div>
+        <div class="chip" data-v="인스타그램">인스타그램</div>
+      </div>
+      <div class="hint">플랫폼별로 지표 스케일이 달라, 점수는 각 플랫폼 안에서 비교합니다.</div>
+    </div>
+
+    <!-- 3. 팔로워 규모 -->
+    <div class="fgrp">
+      <label class="h">3 · 팔로워 규모</label>
+      <div class="chips" id="tier">
+        <div class="chip on" data-v="nano">나노 <small>~1만</small></div>
+        <div class="chip" data-v="micro">마이크로 <small>1만~10만</small></div>
+        <div class="chip" data-v="macro">매크로 <small>10만~</small></div>
+      </div>
+      <div class="hint">구간은 데이터 분포로 정의했습니다 (하위 25% / 상위 14% 경계).</div>
+    </div>
+
+    <!-- 4. 카테고리 -->
+    <div class="fgrp last">
+      <label class="h">4 · 카테고리 <span style="font-weight:400;color:var(--lgt)">다중 선택</span></label>
+      <div class="chips" id="cats"></div>
+      <div class="hint" id="catHint">선택하지 않으면 <b style="color:var(--ink)">전체 카테고리</b>에서 찾습니다.</div>
+    </div>
+
+    <button class="btn" id="go">추천받기</button>
+  </div>
+
+  <div id="out"><p class="load">데이터를 불러오는 중…</p></div>
+
+  <div class="foot">
+    데이터: dummy_creators.csv (200명, 원본 무수정) · 평점 공란 27명은 캠페인 이력이 없는 크리에이터입니다.
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. 데이터 로드 & 안전 파싱
+   ============================================================ */
+const CATS = ["뷰티","식품","패션","피트니스","여행","아웃도어","라이프스타일","테크","게임","교육"];
+const TIERS = {
+  nano:  {label:"나노",   min:0,      max:10000,   desc:"~1만"},
+  micro: {label:"마이크로", min:10000,  max:100000,  desc:"1만~10만"},
+  macro: {label:"매크로",  min:100000, max:Infinity,desc:"10만~"}
+};
+let DATA = [], CAT_MEDIAN_BUDGET = {},
+    state = {tier:"nano", cats:[], plat:"all", mode:"single", ncount:0, alt:0, sort:"score", showAll:false, last:null};
+const PAGE = 12;   // 1차 노출 개수 (나머지는 '더 보기')
+
+function num(v){ const n = parseFloat(String(v ?? "").replace(/,/g,"").trim()); return Number.isFinite(n) ? n : null; }
+
+function parseCSV(text){
+  const lines = text.replace(/^﻿/,"").trim().split(/\r?\n/);
+  const head = lines[0].split(",");
+  return lines.slice(1).map(line=>{
+    const cells = line.split(",");
+    const o = {}; head.forEach((h,i)=> o[h.trim()] = (cells[i] ?? "").trim());
+    const followers = num(o.followers), view = num(o.avg_view_count), er = num(o.engagement_rate);
+    const cc = num(o.total_campaign_count), avgB = num(o.avg_campaign_budget_krw), rt = num(o.advertiser_rating);
+    return {
+      id:o.creator_id, name:o.creator_name, category:o.category, platform:o.platform,
+      followers: followers ?? 0,
+      view: view ?? 0,
+      er: er ?? 0,
+      campaigns: cc ?? 0,
+      totalBudget: num(o.total_campaign_budget_krw) ?? 0,
+      // 0원 = 이력 없음 → 단가 미확인으로 취급 (null과 동일 처리)
+      unitBudget: (avgB && avgB > 0) ? avgB : null,
+      rating: rt,                       // 공란 → null
+      verified: rt !== null && (cc ?? 0) > 0
+    };
+  });
+}
+
+function median(arr){ if(!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); const m=s.length>>1;
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+
+function buildCatMedians(){
+  CAT_MEDIAN_BUDGET = {};
+  CATS.forEach(c=>{
+    const v = DATA.filter(d=>d.category===c && d.unitBudget!==null).map(d=>d.unitBudget);
+    CAT_MEDIAN_BUDGET[c] = median(v) ?? median(DATA.filter(d=>d.unitBudget!==null).map(d=>d.unitBudget)) ?? 0;
+  });
+}
+// 단가: 실제값 우선, 없으면 카테고리 중앙값 추정
+function unitCost(c){ return c.unitBudget !== null ? {v:c.unitBudget, est:false} : {v:CAT_MEDIAN_BUDGET[c.category] ?? 0, est:true}; }
+
+/* ============================================================
+   2. 스코어링 — 선택 밴드 내부 백분위 (규모 편향 상쇄)
+   ============================================================ */
+function pctRank(sorted, v){
+  if(sorted.length<=1) return 1;
+  let lo=0, hi=sorted.length;
+  while(lo<hi){ const m=(lo+hi)>>1; if(sorted[m]<v) lo=m+1; else hi=m; }
+  return lo/(sorted.length-1);
+}
+// 실질 도달 = 평균 조회수 × 참여율(%)  → 조회수와 참여율을 하나의 의미 있는 축으로
+function reachOf(c){ return c.view * (c.er/100); }
+
+/* 도달 1인당 비용(CPR) = 단가 ÷ 실질 도달.
+   같은 데이터에서 최저 111원 ~ 최고 55,089원으로 약 498배 차이가 난다.
+   점수 가중치에는 넣지 않는다 — 효율만 좇으면 나노 채널이 항상 1위가 되어
+   도달 절대량이 필요한 캠페인에서 오답이 된다. 표시·정렬 축으로만 제공한다. */
+function cprOf(c){ const r=reachOf(c); return r>0 ? unitCost(c).v/r : Infinity; }
+
+/* 팔로워 대비 조회수(도달률). 플랫폼마다 기준선이 달라(유튜브 중앙 20.9% · 인스타 33.1%)
+   같은 플랫폼 안에서 하위 10%인 경우에만 주의 신호로 표시한다. */
+let PLAT_VR_P10 = {}, CPR_GOOD = 0, CPR_MED = 0;
+function viewRatio(c){ return c.followers>0 ? c.view/c.followers : 0; }
+function buildPlatVr(){
+  PLAT_VR_P10 = {};
+  const g = {};
+  DATA.forEach(c=>{ (g[c.platform]=g[c.platform]||[]).push(viewRatio(c)); });
+  Object.entries(g).forEach(([p,a])=>{
+    const s=a.sort((x,y)=>x-y);
+    PLAT_VR_P10[p] = s[Math.floor(s.length*0.1)] ?? 0;
+  });
+  const cprs = DATA.map(cprOf).filter(v=>isFinite(v)).sort((a,b)=>a-b);
+  CPR_GOOD = cprs[Math.floor(cprs.length*0.25)] ?? 0;   // 효율 상위 25% 경계
+  CPR_MED  = median(cprs) ?? 0;
+}
+function lowReachRate(c){ return viewRatio(c) < (PLAT_VR_P10[c.platform] ?? 0); }
+
+const W = { reach:0.45, trust:0.30, exp:0.25 };   // 도달 / 신뢰(평점) / 경험(집행건수)
+
+/* 플랫폼별로 분리해 백분위를 매긴다.
+   같은 데이터에서 조회수/팔로워 비율 중앙값이 인스타 33.1% · 유튜브 20.9%로 1.6배 차이나므로,
+   섞어서 줄 세우면 인스타 계정이 구조적으로 유리해진다. */
+function scoreAll(pool){
+  const groups = {};
+  pool.forEach(c=>{ (groups[c.platform] = groups[c.platform] || []).push(c); });
+  let out = [];
+  Object.values(groups).forEach(g=>{
+    const reachS = g.map(reachOf).sort((a,b)=>a-b);
+    const ratedS = g.filter(c=>c.rating!==null).map(c=>c.rating).sort((a,b)=>a-b);
+    const expS   = g.map(c=>c.campaigns).sort((a,b)=>a-b);
+    const medRating = median(ratedS);
+    out = out.concat(g.map(c=>{
+      const sReach = pctRank(reachS, reachOf(c));
+      const sTrust = ratedS.length ? (c.rating!==null ? pctRank(ratedS, c.rating) : pctRank(ratedS, medRating)) : 0.5;
+      const sExp   = pctRank(expS, c.campaigns);
+      const total  = W.reach*sReach + W.trust*sTrust + W.exp*sExp;
+      return {...c, s:{reach:sReach, trust:sTrust, exp:sExp}, score: Math.round(total*100)};
+    }));
+  });
+  return out;
+}
+
+/* ============================================================
+   3. 필터 & 추천
+   ============================================================ */
+function inTier(c, tier){ const t=TIERS[tier]; return c.followers>=t.min && c.followers<t.max; }
+
+function recommend({budget, cats, tier, plat}){
+  const base = DATA.filter(c => inTier(c,tier)
+                            && (cats.length===0 || cats.includes(c.category))
+                            && (!plat || plat==="all" || c.platform===plat));
+  const fit  = base.filter(c => unitCost(c).v <= budget);
+  const scored = scoreAll(fit);
+  return {
+    base, fit,
+    verified: scored.filter(c=>c.verified).sort((a,b)=>b.score-a.score),
+    newcomer: scored.filter(c=>!c.verified).sort((a,b)=>b.score-a.score)
+  };
+}
+
+/* 조건 완화 제안 — 어떤 조건을 풀면 몇 명이 되는지 계산해서 제시 */
+function relaxOptions({budget, cats, tier, plat}){
+  const out = [];
+  const okPlat = c => !plat || plat==="all" || c.platform===plat;
+  const cntTier = t => DATA.filter(c=>inTier(c,t) && (cats.length===0||cats.includes(c.category)) && okPlat(c) && unitCost(c).v<=budget).length;
+  Object.keys(TIERS).filter(t=>t!==tier).forEach(t=>{
+    const n=cntTier(t); if(n>0) out.push({t:`팔로워 규모를 '${TIERS[t].label}'로 변경`, s:`${n}명 추천 가능`, act:()=>{state.tier=t; syncUI(); run();}});
+  });
+  const needed = DATA.filter(c=>inTier(c,tier) && (cats.length===0||cats.includes(c.category)) && okPlat(c))
+                     .map(c=>unitCost(c).v).sort((a,b)=>a-b);
+  if(needed.length && needed[0]>budget){
+    const b = Math.ceil(needed[0]/100000)*100000;
+    out.push({t:`예산을 ${ko(b)}으로 상향`, s:`이 조건의 최저 단가 ${fmt(needed[0])}원 기준`, act:()=>{document.getElementById("budget").value=b; document.getElementById("budgetKo").textContent=ko(b); run();}});
+  }
+  if(cats.length>0 && cats.length<CATS.length){
+    const n = DATA.filter(c=>inTier(c,tier) && okPlat(c) && unitCost(c).v<=budget).length;
+    if(n>0) out.push({t:`카테고리 제한 해제`, s:`전체 카테고리 기준 ${n}명`, act:()=>{state.cats=[]; syncUI(); run();}});
+  }
+  if(plat && plat!=="all"){
+    const n = DATA.filter(c=>inTier(c,tier) && (cats.length===0||cats.includes(c.category)) && unitCost(c).v<=budget).length;
+    if(n>0) out.push({t:`플랫폼 제한 해제`, s:`유튜브·인스타그램 전체 ${n}명`, act:()=>{state.plat="all"; syncUI(); run();}});
+  }
+  return out;
+}
+
+/* 조합 제안 — 예산 내 구성 (안정형 / 테스트형)
+   target=0 이면 예산이 허용하는 만큼, target=n 이면 n명에 맞춰 구성.
+   1) 점수 높은 순으로 담되 예산 초과 시 건너뜀
+   2) 인원이 목표에 못 미치면 단가 낮은 순으로 보완 시도 */
+/* 인원 n명 조합에 필요한 최소 예산 = 단가 하위 n명의 합 */
+function minBudgetFor(pool, n){
+  const costs = pool.map(c=>unitCost(c).v).filter(v=>v>0).sort((a,b)=>a-b);
+  if(costs.length < n) return null;                 // 후보 수 자체가 부족
+  return costs.slice(0,n).reduce((s,v)=>s+v,0);
+}
+/* 예산 내 최대 구성 가능 인원 */
+function maxCountFor(pool, budget){
+  const costs = pool.map(c=>unitCost(c).v).filter(v=>v>0).sort((a,b)=>a-b);
+  let left=budget, n=0;
+  for(const v of costs){ if(v<=left){ left-=v; n++; } else break; }
+  return n;
+}
+
+function combos(res, budget, target, alt){
+  const cost = c => unitCost(c).v;
+  const rotate = (arr, k) => k>0 && arr.length>1 ? [...arr.slice(k%arr.length), ...arr.slice(0, k%arr.length)] : arr;
+  const pick = (pool, cap, want) => {
+    // want=0(자동) → 예산 내 '최대 인원'을 목표로 (점수순으로만 담으면 비싼 후보부터 차서 인원이 적어지는 역설 방지)
+    const goal = want || maxCountFor(pool, cap);
+    // alt>0 이면 시작 지점을 밀어 다른 구성안을 만든다 ("다른 조합 보기")
+    let out=[], left=cap;
+    for(const c of rotate([...pool].sort((a,b)=>b.score-a.score), alt)){   // 1차: 성과 우선
+      if(goal && out.length>=goal) break;
+      const u=cost(c); if(u>0 && u<=left){ out.push(c); left-=u; }
+    }
+    if(goal && out.length<goal){                              // 2차: 인원 미달 시 저단가 우선 재구성
+      let o2=[], l2=cap;
+      for(const c of rotate([...pool].sort((a,b)=>cost(a)-cost(b)), alt)){
+        if(o2.length>=goal) break;
+        const u=cost(c); if(u>0 && u<=l2){ o2.push(c); l2-=u; }
+      }
+      if(o2.length>out.length){ out=o2; left=l2; }
+      // 3차: 회전(다른 조합 보기) 때문에 목표를 놓친 경우 → 회전 없이 최저단가로 재시도
+      if(out.length<goal && alt>0){
+        let o3=[], l3=cap;
+        for(const c of [...pool].sort((a,b)=>cost(a)-cost(b))){
+          if(o3.length>=goal) break;
+          const u=cost(c); if(u>0 && u<=l3){ o3.push(c); l3-=u; }
+        }
+        if(o3.length>out.length){ out=o3; left=l3; }
+      }
+    }
+    return {out, left, short: want ? Math.max(0, want-out.length) : 0};
+  };
+  const stable = pick(res.verified, budget, target);
+  let test = null;
+  if(res.newcomer.length){
+    const nl = rotate([...res.newcomer].sort((a,b)=>b.score-a.score), alt);
+    const n = nl[0], nCost = cost(n);
+    if(nCost>0 && nCost<=budget){
+      const want = target ? target-1 : 0;
+      const rest = want===0 && target ? {out:[],left:budget-nCost,short:0} : pick(res.verified, budget-nCost, want);
+      test = {out:[...rest.out, n], left:rest.left, short:rest.short, newbie:n};
+    }
+  }
+  return {stable, test};
+}
+
+/* ============================================================
+   4. 렌더
+   ============================================================ */
+const fmt = n => Math.round(n).toLocaleString();
+/* 금액 한글 환산: 1,310,000원 → "131만원", 30,000,000원 → "3,000만원" */
+function ko(n){
+  n = Math.round(n||0);
+  if(n===0) return "0원";
+  if(n>=100000000){ const eok=n/100000000; return (eok%1===0?eok:eok.toFixed(1))+"억원"; }
+  if(n>=10000){ const man=n/10000; return (man%1===0?fmt(man):man.toFixed(1))+"만원"; }
+  return fmt(n)+"원";
+}
+const won = n => fmt(n)+"원 ("+ko(n)+")";
+
+function card(c, input){
+  const u = unitCost(c);
+  const cpr = cprOf(c);
+  const tags = [];
+  // 조건 적합 근거 (카테고리 · 예산)
+  if(input && input.cats.length && input.cats.includes(c.category)) tags.push(['b',`카테고리 일치 · ${c.category}`]);
+  if(input && input.budget>0){
+    const pct = Math.round(u.v/input.budget*100);
+    tags.push(['b', pct<=100 ? `예산의 ${pct}% 소진` : `예산 초과`]);
+  }
+  // 성과 근거
+  if(c.s.reach>=0.9) tags.push(['g',`실질 도달 ${c.platform} 상위 10%`]);
+  else if(c.s.reach>=0.75) tags.push(['g',`실질 도달 ${c.platform} 상위 25%`]);
+  if(c.rating!==null && c.rating>=4.7) tags.push(['g',`광고주 평점 ${c.rating}`]);
+  if(c.er>=8) tags.push(['b',`참여율 ${c.er}%`]);
+  if(c.campaigns>=20) tags.push(['b',`집행 ${c.campaigns}건`]);
+  if(c.totalBudget>=50000000) tags.push(['b',`누적 집행 ${ko(c.totalBudget)}`]);
+  if(cpr!==Infinity && cpr<=CPR_GOOD) tags.push(['g','예산 효율 상위 25%']);   // 값은 위 본문에 이미 노출
+  // 주의 근거
+  if(!c.verified) tags.push(['a','캠페인 이력 없음 · 미검증']);
+  if(u.est) tags.push(['a','단가 미확인 · 카테고리 평균 추정']);
+  if(lowReachRate(c)) tags.push(['a',`팔로워 대비 조회수 ${(viewRatio(c)*100).toFixed(0)}% · ${c.platform} 하위 10% — 확인 필요`]);
+
+  const bar = (label, v) => `<div class="bar"><b>${label}</b><div class="t"><i style="width:${Math.round(v*100)}%"></i></div><em>${Math.round(v*100)}</em></div>`;
+  return `<div class="c ${c.verified?'':'new'}">
+    <div class="c-top">
+      <div>
+        <div class="c-name">${c.name}</div>
+        <div class="c-meta">${c.category} · ${c.platform} · 팔로워 ${fmt(c.followers)}</div>
+      </div>
+      <div class="score">${c.score}<small>SCORE</small></div>
+    </div>
+    <div class="bars">
+      ${bar('도달',c.s.reach)}${bar('신뢰',c.s.trust)}${bar('경험',c.s.exp)}
+    </div>
+    <div class="c-meta">평균 조회수 ${fmt(c.view)} · 실질 도달 ${fmt(reachOf(c))}${c.verified?` · 누적 집행 ${c.campaigns}건 ${ko(c.totalBudget)}`:""}</div>
+    <div class="c-meta" style="margin-top:2px">단가 <b style="color:var(--ink)">${ko(u.v)}</b> <span style="color:var(--lgt)">(${fmt(u.v)}원)</span>${u.est?' · 추정':''}</div>
+    <div class="c-meta" style="margin-top:2px">도달 1인당 <b style="color:var(--ink)">${cpr===Infinity?'-':fmt(Math.round(cpr))+'원'}</b> <span style="color:var(--lgt)">(전체 중앙값 ${fmt(Math.round(CPR_MED))}원)</span></div>
+    <div class="tags">${tags.map(([k,t])=>`<span class="tag ${k}">${t}</span>`).join("")}</div>
+  </div>`;
+}
+
+function comboBlock(title, desc, obj, budget){
+  if(!obj || !obj.out.length) return "";
+  const used = obj.out.reduce((s,c)=>s+unitCost(c).v,0);
+  const reach = obj.out.reduce((s,c)=>s+reachOf(c),0);
+  const shortMsg = obj.short ? `<div class="d" style="color:var(--amb)">지정 인원보다 ${obj.short}명 부족합니다 — 예산 또는 조건을 완화하면 인원을 채울 수 있습니다.</div>` : "";
+  return `<div class="combo">
+    <h4>${title}</h4>
+    <div class="d">${desc}</div>
+    ${shortMsg}
+    <table>
+      ${obj.out.map(c=>`<tr><td>${c.name} <span style="color:var(--gry)">${c.category}·${c.verified?'검증':'신인'}</span></td><td>${ko(unitCost(c).v)}</td></tr>`).join("")}
+      <tr class="sum"><td>합계 ${obj.out.length}명 · 예상 실질 도달 ${fmt(reach)}</td><td>${ko(used)} / ${ko(budget)} (${Math.round(used/budget*100)}%)</td></tr>
+    </table>
+  </div>`;
+}
+
+function render(res, input){
+  const out = document.getElementById("out");
+  const sortFn = {
+    score:(a,b)=>b.score-a.score,
+    er:(a,b)=>b.er-a.er,
+    view:(a,b)=>b.view-a.view,
+    camp:(a,b)=>b.campaigns-a.campaigns,
+    rate:(a,b)=>(b.rating??0)-(a.rating??0),
+    cost:(a,b)=>unitCost(a).v-unitCost(b).v,
+    cpr:(a,b)=>cprOf(a)-cprOf(b)
+  }[state.sort];
+
+  if(res.fit.length===0){
+    const opts = relaxOptions(input);
+    out.innerHTML = `<div class="empty">
+      <h3>조건에 맞는 크리에이터가 없습니다</h3>
+      <p>${TIERS[input.tier].label} · ${input.cats.length?input.cats.join(", "):"전체 카테고리"} · 예산 ${won(input.budget)} 기준으로 후보가 없습니다.
+      ${res.base.length?`팔로워·카테고리 조건에는 ${res.base.length}명이 있으나 예산을 초과합니다.`:""}</p>
+      <div class="alt">${opts.map((o,i)=>`<button data-i="${i}">${o.t}<br /><span>${o.s}</span></button>`).join("")||"<span class='hint'>완화할 수 있는 조건이 없습니다.</span>"}</div>
+    </div>`;
+    out.querySelectorAll(".alt button").forEach(b=> b.onclick=()=>opts[+b.dataset.i].act());
+    return;
+  }
+
+  // 미검증 그룹은 평점·집행건수가 전부 0이라 해당 정렬이 무의미 → 추천 점수 순 유지
+  const nSortFn = (state.sort==="rate"||state.sort==="camp") ? ((a,b)=>b.score-a.score) : sortFn;
+  const v = [...res.verified].sort(sortFn), n = [...res.newcomer].sort(nSortFn);
+  const maxN = maxCountFor(res.verified, input.budget);
+
+  // ── 탭
+  let html = `<div class="tabs">
+    <div class="tb ${state.mode==='single'?'on':''}" data-m="single">단독 1인<span>${v.length+n.length}명</span></div>
+    <div class="tb ${state.mode==='combo'?'on':''}" data-m="combo">조합 제안<span>${maxN>=2?`최대 ${maxN}명`:'예산 부족'}</span></div>
+  </div>`;
+
+  if(state.mode==="single"){
+    const sorts = [["score","추천 점수"],["cpr","예산 효율"],["er","참여율"],["view","평균 조회수"],["camp","집행 건수"],["rate","평점"],["cost","단가 낮은 순"]];
+    html += `<div class="sortbar" style="margin-top:16px"><em>정렬</em>${sorts.map(([k,l])=>`<div class="chip ${state.sort===k?'on':''}" data-s="${k}">${l}</div>`).join("")}</div>`;
+    const scope = state.plat==="all" ? "플랫폼별로 나눠" : `${state.plat} 안에서`;
+    const wide = v.length + n.length >= 20 ? ` 후보가 많습니다 — 구간을 더 쪼개는 대신 위 정렬 기준으로 좁혀 보세요.` : "";
+    const cprNote = state.sort==="cpr" ? ` <b>예산 효율 = 단가 ÷ 실질 도달.</b> 이 데이터에서 도달 1인당 비용은 최저 111원 ~ 최고 55,089원으로 약 498배 차이가 납니다. 다만 효율이 좋아도 도달 절대량이 작을 수 있어 추천 점수와 함께 보시길 권합니다.` : "";
+    const vShown = state.showAll ? v : v.slice(0,PAGE);
+    html += `<div class="sec-h"><h2>추천 크리에이터</h2><span>${v.length}명 · 캠페인 이력으로 검증된 후보</span></div>
+             <p class="sec-desc">실질 도달(조회수×참여율) 45% · 광고주 평점 30% · 집행 경험 25% — 선택한 팔로워 규모, ${scope} 상대 평가했습니다.${wide}${cprNote}</p>
+             <div class="cards">${vShown.map(c=>card(c,input)).join("")||"<p class='hint'>해당 조건의 검증된 후보가 없습니다.</p>"}</div>
+             ${v.length>PAGE && !state.showAll ? `<div class="alt" style="margin-top:12px"><button id="more">나머지 ${v.length-PAGE}명 더 보기</button></div>`:""}`;
+    if(n.length){
+      const nShown = state.showAll ? n : n.slice(0,PAGE);
+      html += `<div class="sec-h"><h2>미검증 후보</h2><span>${n.length}명 · 캠페인 이력 없음</span></div>
+               <p class="sec-desc">광고 집행 이력이 없어 성과 예측이 어렵습니다. 채널 규모·참여율은 확인되므로 신규 발굴 목적이라면 검토할 수 있습니다.${state.sort==="rate"||state.sort==="camp"?" (평점·집행 건수 정렬은 이 그룹에서 의미가 없어 추천 점수 순으로 표시합니다.)":""}</p>
+               <div class="cards">${nShown.map(c=>card(c,input)).join("")}</div>
+               ${n.length>PAGE && !state.showAll ? `<div class="alt" style="margin-top:12px"><button id="more2">나머지 ${n.length-PAGE}명 더 보기</button></div>`:""}`;
+    }
+  } else {
+    // ── 조합 탭
+    const cb = combos(res, input.budget, state.ncount, state.alt);
+    const need = {}; [2,3,4,5].forEach(k=> need[k]=minBudgetFor(res.verified,k));
+    html += `<div class="sec-h"><h2>예산 내 조합 제안</h2><span>${state.ncount?`${state.ncount}명 지정`:`자동 · 최대 ${maxN}명`}${state.alt?` · 대안 ${state.alt}`:''}</span></div>
+             <p class="sec-desc">예산을 나눠 여러 명으로 구성하는 안입니다. 추천 점수가 높은 후보부터 담고, 인원이 모자라면 단가가 낮은 후보로 채웁니다.</p>
+             <div class="sortbar" id="ncount2"><em>섭외 인원</em>
+               <div class="chip ${state.ncount===0?'on':''}" data-n="0">자동</div>
+               ${[2,3,4,5].map(k=>{
+                  const ok = need[k]!==null && need[k]<=input.budget;
+                  return `<div class="chip ${state.ncount===k?'on':''} ${ok?'':'off'}" data-n="${k}" data-need="${need[k]??0}">${k}명${
+                    ok?'':`<small class="req">${need[k]?ko(need[k])+'~':'후보 부족'}</small>`}</div>`;
+               }).join("")}
+               <button class="btn" id="reco" style="margin:0 0 0 8px;padding:6px 14px;font-size:13px">다른 조합 보기</button>
+               ${state.alt?`<div class="chip" id="resetAlt">처음 조합으로</div>`:''}
+             </div>`;
+    if(state.ncount && cb.stable.short){
+      const nd = need[state.ncount];
+      html += `<div class="notice">${state.ncount}명 조합에는 최소 <b>${nd?ko(nd):'—'}</b>이 필요합니다. 현재 예산 ${ko(input.budget)}으로는 ${cb.stable.out.length}명까지 구성됩니다.
+        ${nd?`<button id="raise" data-b="${nd}">예산을 ${ko(nd)}으로 변경</button>`:''}</div>`;
+    }
+    html += comboBlock("안정형 — 검증된 크리에이터로 구성", "집행 이력이 있는 후보로만 예산을 채웁니다.", cb.stable, input.budget);
+    html += comboBlock("테스트형 — 검증 + 신규 발굴", "검증된 후보로 성과를 담보하고, 남는 예산으로 미검증 채널 1명을 테스트합니다.", cb.test, input.budget);
+    if(!cb.stable.out.length && !cb.test){
+      const n2 = need[2];
+      html += `<div class="empty"><h3>조합을 만들 수 없습니다</h3>
+        <p>현재 예산 ${ko(input.budget)}으로는 이 조건에서 2명 이상 구성할 수 없습니다.${n2?` 2명 조합에는 최소 ${ko(n2)}이 필요합니다.`:''}</p>
+        <div class="alt">${n2?`<button id="raise2" data-b="${n2}">예산을 ${ko(n2)}으로 변경<br /><span>2명 조합 최소 기준</span></button>`:''}
+        <button id="toSingle">단독 1인 추천 보기<br /><span>현재 조건으로 ${v.length+n.length}명</span></button></div></div>`;
+    }
+  }
+
+  out.innerHTML = html;
+  out.querySelectorAll(".tabs .tb").forEach(t=> t.onclick=()=>{ state.mode=t.dataset.m; state.alt=0; run(); });
+  out.querySelectorAll(".sortbar .chip[data-s]").forEach(c=> c.onclick=()=>{ state.sort=c.dataset.s; run(); });
+  ["more","more2"].forEach(id=>{ const el=out.querySelector("#"+id); if(el) el.onclick=()=>{ state.showAll=true; run(); }; });
+  out.querySelectorAll("#ncount2 .chip[data-n]").forEach(c=> c.onclick=()=>{ state.ncount=+c.dataset.n; state.alt=0; run(); });
+  const setB = b =>{ document.getElementById("budget").value=b; document.getElementById("budgetKo").textContent=ko(b); state.alt=0; run(); };
+  ["raise","raise2"].forEach(id=>{ const el=out.querySelector("#"+id); if(el) el.onclick=()=>setB(+el.dataset.b); });
+  const ts = out.querySelector("#toSingle"); if(ts) ts.onclick=()=>{ state.mode="single"; run(); };
+  const rc = out.querySelector("#reco"); if(rc) rc.onclick = ()=>{ state.alt=(state.alt||0)+1; run(); };
+  const ra = out.querySelector("#resetAlt"); if(ra) ra.onclick = ()=>{ state.alt=0; run(); };
+}
+
+/* ============================================================
+   5. UI 바인딩
+   ============================================================ */
+function syncUI(){
+  document.querySelectorAll("#tier .chip").forEach(c=> c.classList.toggle("on", c.dataset.v===state.tier));
+  document.querySelectorAll("#plat .chip").forEach(c=> c.classList.toggle("on", c.dataset.v===state.plat));
+  document.querySelectorAll("#cats .chip").forEach(c=> c.classList.toggle("on", state.cats.includes(c.dataset.v)));
+  const ch=document.getElementById("catHint");
+  if(ch) ch.innerHTML = state.cats.length
+    ? `${state.cats.length}개 카테고리 선택 — <b style="color:var(--ink)">${state.cats.join(", ")}</b>`
+    : `선택하지 않으면 <b style="color:var(--ink)">전체 카테고리</b>에서 찾습니다.`;
+}
+function run(){
+  const input = {budget: Math.max(0, num(document.getElementById("budget").value) ?? 0),
+                 cats: state.cats, tier: state.tier, plat: state.plat};
+  if(!state.last || state.last.budget!==input.budget || state.last.tier!==input.tier
+     || state.last.plat!==input.plat || String(state.last.cats)!==String(input.cats)) state.showAll=false;
+  state.last = input;
+  render(recommend(input), input);
+}
+function boot(){
+  document.getElementById("cats").innerHTML = CATS.map(c=>`<div class="chip" data-v="${c}">${c}</div>`).join("");
+  document.querySelectorAll("#cats .chip").forEach(c=> c.onclick=()=>{
+    const v=c.dataset.v; state.cats = state.cats.includes(v) ? state.cats.filter(x=>x!==v) : [...state.cats, v]; syncUI();
+  });
+  document.querySelectorAll("#tier .chip").forEach(c=> c.onclick=()=>{ state.tier=c.dataset.v; syncUI(); });
+  document.querySelectorAll("#plat .chip").forEach(c=> c.onclick=()=>{ state.plat=c.dataset.v; syncUI(); if(state.last) run(); });
+  // 예산: 한글 환산 실시간 표시 + 빠른 선택
+  const bIn = document.getElementById("budget"), bKo = document.getElementById("budgetKo");
+  const syncBudget = ()=>{ bKo.textContent = ko(num(bIn.value) ?? 0); };
+  bIn.addEventListener("input", syncBudget);
+  // 금액 칩: 누를 때마다 누적 가산 / '초기화'는 0으로
+  document.querySelectorAll(".chip.q").forEach(c=> c.onclick=()=>{
+    const add = Number(c.dataset.b);
+    bIn.value = add === 0 ? 0 : (num(bIn.value) ?? 0) + add;
+    syncBudget();
+  });
+  syncBudget();
+  document.getElementById("go").onclick = run;
+  syncUI();
+}
+
+fetch("dummy_creators.csv").then(r=>{
+  if(!r.ok) throw new Error("csv");
+  return r.text();
+}).then(t=>{
+  DATA = parseCSV(t); buildCatMedians(); buildPlatVr(); boot();
+  document.getElementById("out").innerHTML = `<p class="load">조건을 입력하고 [추천받기]를 눌러주세요. (총 ${DATA.length}명)</p>`;
+}).catch(()=>{
+  document.getElementById("out").innerHTML =
+    `<div class="empty"><h3>데이터를 불러오지 못했습니다</h3>
+     <p>브라우저 보안 정책으로 로컬 파일을 직접 열면 CSV를 읽을 수 없습니다.<br />
+     터미널에서 <b>python3 -m http.server 8000</b> 실행 후 <b>http://localhost:8000</b> 으로 접속해 주세요.</p></div>`;
+});
+</script>
+</body>
+</html>
